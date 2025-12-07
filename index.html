@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lyrics Search with Korean Translation</title>
+    <style>
+        /* CSS Variables */
+        :root {
+            --primary-color: #4285f4;
+            --bg-color: #ffffff;
+            --text-color: #202124;
+            --gray-border: #dfe1e5;
+            --hover-bg: #f8f9fa;
+            --translation-color: #5f6368; /* Grey for translation */
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin-top: 20vh;
+            padding: 20px;
+            text-align: center;
+            transition: margin-top 0.4s ease;
+        }
+
+        .container.active {
+            margin-top: 5vh;
+        }
+
+        h1 {
+            font-weight: 300;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        /* Search Box */
+        .search-wrapper {
+            position: relative;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 24px;
+            font-size: 16px;
+            border: 1px solid var(--gray-border);
+            border-radius: 24px;
+            outline: none;
+            box-shadow: 0 1px 6px rgba(32,33,36,.28);
+            transition: box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+
+        input[type="text"]:focus {
+            box-shadow: 0 1px 6px rgba(32,33,36,.5);
+        }
+
+        /* Suggestions Dropdown */
+        .suggestions-list {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid var(--gray-border);
+            border-top: none;
+            border-radius: 0 0 24px 24px;
+            box-shadow: 0 4px 6px rgba(32,33,36,.28);
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            text-align: left;
+            z-index: 10;
+            display: none;
+        }
+
+        .suggestions-list li {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f1f1;
+        }
+
+        .suggestions-list li:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .song-title { font-weight: 600; display: block; }
+        .song-artist { font-size: 0.85rem; color: #555; }
+
+        /* Controls (Toggle) */
+        .controls {
+            margin: 15px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        /* Lyrics Display Area */
+        #lyrics-display {
+            margin-top: 30px;
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            padding-bottom: 80px;
+        }
+
+        /* Line Styling */
+        .lyric-block {
+            margin-bottom: 20px;
+        }
+
+        .lyric-line {
+            font-size: 18px;
+            font-weight: 500;
+            color: #000;
+            margin-bottom: 4px;
+        }
+
+        .translation-line {
+            font-size: 15px;
+            color: #4285f4; /* Blue to distinguish translation */
+            font-weight: 400;
+            min-height: 20px; /* Prevent jumping */
+        }
+
+        .meta-tag {
+            font-size: 12px;
+            color: #999;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 2px 6px;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+
+        .loading-spinner {
+            color: #777;
+            font-style: italic;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="main-container">
+        <h1>Music Search</h1>
+        
+        <div class="search-wrapper">
+            <input type="text" id="search-input" placeholder="Enter song title..." autocomplete="off">
+            <ul class="suggestions-list" id="suggestions"></ul>
+        </div>
+
+        <div class="controls">
+            <input type="checkbox" id="translate-toggle" checked>
+            <label for="translate-toggle">Auto-translate to Korean (Line-by-Line)</label>
+        </div>
+
+        <div id="lyrics-display"></div>
+        
+        <div style="font-size: 11px; color: #ccc; margin-top: 50px;">
+            Lyrics via Genius API | Translation via MyMemory API
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const RAPID_API_KEY = '39ef605fcfmshfb8f3f73fff37e2p1a9076jsn4d35c9c6d6d5';
+        const RAPID_API_HOST = 'genius-song-lyrics1.p.rapidapi.com';
+        
+        // --- DOM Elements ---
+        const searchInput = document.getElementById('search-input');
+        const suggestionsList = document.getElementById('suggestions');
+        const lyricsDisplay = document.getElementById('lyrics-display');
+        const mainContainer = document.getElementById('main-container');
+        const translateToggle = document.getElementById('translate-toggle');
+
+        // --- Search Logic ---
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        searchInput.addEventListener('input', debounce((e) => {
+            const query = e.target.value.trim();
+            if (query.length > 2) fetchSuggestions(query);
+            else suggestionsList.style.display = 'none';
+        }, 400));
+
+        async function fetchSuggestions(query) {
+            const url = `https://${RAPID_API_HOST}/search/?q=${encodeURIComponent(query)}&per_page=5&page=1`;
+            const options = { method: 'GET', headers: { 'x-rapidapi-key': RAPID_API_KEY, 'x-rapidapi-host': RAPID_API_HOST } };
+
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                const hits = data.hits || (data.response ? data.response.hits : []);
+                renderSuggestions(hits);
+            } catch (error) { console.error(error); }
+        }
+
+        function renderSuggestions(hits) {
+            suggestionsList.innerHTML = '';
+            if (!hits.length) { suggestionsList.style.display = 'none'; return; }
+
+            hits.forEach(item => {
+                const song = item.result;
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="song-title">${song.title}</span><span class="song-artist">${song.artist_names}</span>`;
+                li.onclick = () => selectSong(song.id, song.full_title);
+                suggestionsList.appendChild(li);
+            });
+            suggestionsList.style.display = 'block';
+        }
+
+        function selectSong(id, fullTitle) {
+            suggestionsList.style.display = 'none';
+            searchInput.value = fullTitle;
+            mainContainer.classList.add('active');
+            lyricsDisplay.innerHTML = '<div class="loading-spinner">Fetching lyrics...</div>';
+            fetchLyrics(id);
+        }
+
+        // --- Lyrics Logic ---
+        async function fetchLyrics(id) {
+            const url = `https://${RAPID_API_HOST}/song/lyrics/?id=${id}`;
+            const options = { method: 'GET', headers: { 'x-rapidapi-key': RAPID_API_KEY, 'x-rapidapi-host': RAPID_API_HOST } };
+
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                let rawHtml = "";
+                if (data.lyrics && data.lyrics.lyrics && data.lyrics.lyrics.body && data.lyrics.lyrics.body.html) {
+                     rawHtml = data.lyrics.lyrics.body.html;
+                } else if (data.lyrics) {
+                     rawHtml = data.lyrics; // Fallback
+                }
+
+                if(!rawHtml) throw new Error("No lyrics found");
+
+                processAndRenderLyrics(rawHtml);
+
+            } catch (error) {
+                lyricsDisplay.innerHTML = '<div class="loading-spinner">Could not load lyrics.</div>';
+            }
+        }
+
+        // --- Processing & Rendering ---
+        function processAndRenderLyrics(html) {
+            lyricsDisplay.innerHTML = ''; // Clear loading
+
+            // 1. Create a dummy element to parse HTML to text
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            
+            // 2. Replace <br> with newlines to split easily
+            const cleanText = tempDiv.innerText; 
+            
+            // 3. Split into lines
+            const lines = cleanText.split('\n').filter(line => line.trim() !== '');
+
+            // 4. Render lines
+            lines.forEach((line, index) => {
+                // Check if it's a meta tag like [Chorus]
+                if (line.startsWith('[') && line.endsWith(']')) {
+                    const metaDiv = document.createElement('div');
+                    metaDiv.className = 'meta-tag';
+                    metaDiv.innerText = line;
+                    lyricsDisplay.appendChild(metaDiv);
+                } else {
+                    // Create Container for pair
+                    const block = document.createElement('div');
+                    block.className = 'lyric-block';
+
+                    // Original
+                    const originalDiv = document.createElement('div');
+                    originalDiv.className = 'lyric-line';
+                    originalDiv.innerText = line;
+
+                    // Translation
+                    const transDiv = document.createElement('div');
+                    transDiv.className = 'translation-line';
+                    transDiv.id = `trans-${index}`; // Unique ID for updating later
+                    
+                    block.appendChild(originalDiv);
+                    block.appendChild(transDiv);
+                    lyricsDisplay.appendChild(block);
+
+                    // Trigger translation if toggle is on
+                    if (translateToggle.checked) {
+                        // Add a small delay based on index to prevent API rate limiting (waterfall effect)
+                        setTimeout(() => {
+                            translateText(line, `trans-${index}`);
+                        }, index * 300); 
+                    }
+                }
+            });
+        }
+
+        // --- Translation Logic (Free MyMemory API) ---
+        async function translateText(text, elementId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            
+            el.innerText = "..."; // Loading indicator
+
+            const sourceLang = 'en'; // Assuming English source for most Western songs
+            const targetLang = 'ko'; // Korean
+            
+            // Using MyMemory API
+            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if(data.responseData && data.responseData.translatedText) {
+                    el.innerText = data.responseData.translatedText;
+                } else {
+                    el.innerText = ""; // Hide if fail
+                }
+            } catch (e) {
+                console.log("Translation error", e);
+                el.innerText = "";
+            }
+        }
+
+        // Close dropdown on outside click
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
+                suggestionsList.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
