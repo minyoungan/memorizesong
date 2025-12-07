@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lyric Memorizer - SRS Quiz</title>
+    <title>Lyric Memorizer</title>
     <style>
         /* --- CSS STYLES --- */
         :root {
@@ -14,6 +14,7 @@
             --text: #202124;
             --gray: #dfe1e5;
             --light-gray: #f1f3f4;
+            --disabled-bg: #e0e0e0; /* Distinct Grey for disabled state */
         }
 
         body {
@@ -33,18 +34,21 @@
             max-width: 700px;
             padding: 20px;
             text-align: center;
-            margin-top: 25vh; /* Starts in center */
+            margin-top: 25vh;
             transition: margin-top 0.4s ease;
         }
         .header.compact { margin-top: 2vh; }
 
         h1 { font-weight: 300; margin-bottom: 20px; color: #333; }
 
-        .search-box { position: relative; width: 100%; }
+        .search-box { 
+            position: relative; 
+            width: 100%; 
+        }
 
         input[type="text"] {
             width: 100%;
-            padding: 14px 45px 14px 24px; /* Extra padding on right for X button */
+            padding: 14px 45px 14px 24px; /* Space for X button */
             font-size: 16px;
             border: 1px solid var(--gray);
             border-radius: 24px;
@@ -52,15 +56,17 @@
             box-shadow: 0 1px 6px rgba(32,33,36,0.28);
             box-sizing: border-box;
             background-color: #fff;
-            transition: background-color 0.3s;
+            color: #000;
+            transition: all 0.3s;
         }
         
-        /* Grey out state */
+        /* DISABLED STATE (Greyed Out) */
         input[type="text"]:disabled {
-            background-color: #f1f3f4;
-            color: #555;
+            background-color: var(--disabled-bg); /* Grey Background */
+            color: #555; /* Dark Grey Text */
             cursor: not-allowed;
             box-shadow: none;
+            border-color: transparent;
         }
 
         input[type="text"]:focus:not(:disabled) { box-shadow: 0 1px 6px rgba(32,33,36,0.5); }
@@ -72,14 +78,16 @@
             top: 50%;
             transform: translateY(-50%);
             font-size: 20px;
-            color: #777;
+            color: #666;
             cursor: pointer;
-            padding: 5px 10px;
+            padding: 8px 12px;
             display: none; /* Hidden by default */
             z-index: 5;
+            font-weight: bold;
         }
-        .clear-btn:hover { color: #333; }
+        .clear-btn:hover { color: #000; }
 
+        /* Dropdown Suggestions */
         .suggestions {
             position: absolute;
             top: 50px; left: 0; right: 0;
@@ -119,19 +127,19 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
-        /* Views */
+        /* Content Views */
         .content-area {
             width: 100%;
             max-width: 700px;
             padding: 20px;
             margin-bottom: 50px;
-            display: none; /* Hidden until search */
+            display: none;
         }
         .content-area.active { display: block; }
         .view-section { display: none; }
         .view-section.active { display: block; }
 
-        /* Study Mode */
+        /* Study Mode UI */
         .lyric-row {
             padding: 12px 0;
             border-bottom: 1px solid #f1f1f1;
@@ -143,8 +151,9 @@
         .orig-line { font-size: 1.1rem; font-weight: 500; margin-bottom: 4px; color: #000; }
         .trans-line { font-size: 0.9rem; color: var(--primary); }
         .mastery-indicator { font-size: 0.8rem; color: #888; margin-left: 10px; min-width: 70px; text-align: right; }
+        .skipped-indicator { font-size: 0.75rem; color: #aaa; font-style: italic; }
 
-        /* Quiz Mode */
+        /* Quiz Mode UI */
         .quiz-card {
             background: white;
             border: 1px solid var(--gray);
@@ -200,7 +209,7 @@
         <h1>Lyric Memorizer</h1>
         <div class="search-box">
             <input type="text" id="search-input" placeholder="Search for a song..." autocomplete="off">
-            <span id="clear-btn" class="clear-btn" title="Clear Search">&times;</span>
+            <span id="clear-btn" class="clear-btn" title="Clear Search">✕</span>
             <ul class="suggestions" id="suggestions"></ul>
         </div>
 
@@ -213,7 +222,7 @@
     <div class="content-area" id="main-content">
         
         <div id="study-view" class="view-section active">
-            <div id="loading-msg" class="loading-spinner hidden">Loading lyrics and removing tracking scripts...</div>
+            <div id="loading-msg" class="loading-spinner hidden">Loading lyrics...</div>
             <div id="lyrics-list"></div>
         </div>
 
@@ -299,35 +308,40 @@
             els.suggestions.style.display = 'block';
         }
 
-        // --- 5. CLEAR / RESET FUNCTION ---
+        // --- 5. CLEAR / RESET APP ---
         els.clearBtn.addEventListener('click', resetApp);
 
         function resetApp() {
-            // 1. Reset Input
-            els.input.value = '';
+            // 1. Re-enable Search Box
             els.input.disabled = false;
-            els.clearBtn.style.display = 'none';
+            els.input.value = '';
+            els.input.focus();
             
-            // 2. Hide Content
+            // 2. Hide X button
+            els.clearBtn.style.display = 'none';
+
+            // 3. Reset UI to startup state
             els.header.classList.remove('compact');
             els.tabs.style.display = 'none';
             els.mainContent.classList.remove('active');
             els.suggestions.style.display = 'none';
             
-            // 3. Clear Data
+            // 4. Clear Data
             lyricsData = [];
             els.lyricsList.innerHTML = '';
         }
 
         // --- 6. LOAD SONG ---
         async function loadSong(id, title) {
-            // UI LOCK
+            // UI ACTION: Hide suggestions, fill input
             els.suggestions.style.display = 'none';
             els.input.value = title;
-            els.input.disabled = true; // GREY OUT
-            els.clearBtn.style.display = 'block'; // SHOW X
             
-            // Transition
+            // UI ACTION: Disable Input & Show X
+            els.input.disabled = true; 
+            els.clearBtn.style.display = 'block';
+
+            // UI ACTION: Transition to content
             els.header.classList.add('compact');
             els.tabs.style.display = 'flex';
             els.mainContent.classList.add('active');
@@ -368,13 +382,17 @@
 
             lyricsData = textContent.split('\n')
                 .filter(line => line.trim() !== '' && !line.startsWith('['))
-                .map((line, idx) => ({
-                    id: idx,
-                    original: line.trim(),
-                    translation: '...',
-                    nextReview: Date.now(),
-                    level: 0
-                }));
+                .map((line, idx) => {
+                    const wordCount = line.trim().split(/\s+/).length;
+                    return {
+                        id: idx,
+                        original: line.trim(),
+                        translation: '...',
+                        nextReview: Date.now(),
+                        level: 0,
+                        quizzable: wordCount > 3 // Only quiz if > 3 words
+                    };
+                });
 
             renderStudyList();
             els.loadingMsg.classList.add('hidden');
@@ -384,7 +402,7 @@
         // --- 7. TRANSLATIONS ---
         async function startTranslations() {
             for(let i=0; i<lyricsData.length; i++) {
-                if(i > 20) break;
+                if(i > 20) break; // Limit requests
                 await new Promise(r => setTimeout(r, 300));
                 try {
                     const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(lyricsData[i].original)}&langpair=en|ko`);
@@ -414,6 +432,16 @@
         }
 
         function getRowHTML(item) {
+            if (!item.quizzable) {
+                return `
+                <div class="lyric-text-group">
+                    <div class="orig-line">${item.original}</div>
+                    <div class="trans-line">${item.translation}</div>
+                </div>
+                <div class="mastery-indicator skipped-indicator">Too short for quiz</div>
+                `;
+            }
+
             let lvl = "New";
             if(item.level > 0) lvl = "Learned";
             if(item.level > 3) lvl = "Mastered";
@@ -454,7 +482,7 @@
 
         function getNextCard() {
             const now = Date.now();
-            const due = lyricsData.filter(l => l.nextReview <= now);
+            const due = lyricsData.filter(l => l.nextReview <= now && l.quizzable);
             if(!due.length) return null;
             due.sort((a,b) => a.level - b.level);
             return due[0];
@@ -524,8 +552,8 @@
 
         function updateStats() {
             const now = Date.now();
-            els.statDue.innerText = `Due: ${lyricsData.filter(l => l.nextReview <= now).length}`;
-            els.statLearned.innerText = `Learned: ${lyricsData.filter(l => l.level > 0).length}`;
+            els.statDue.innerText = `Due: ${lyricsData.filter(l => l.nextReview <= now && l.quizzable).length}`;
+            els.statLearned.innerText = `Learned: ${lyricsData.filter(l => l.level > 0 && l.quizzable).length}`;
         }
         
         document.addEventListener('click', (e) => {
