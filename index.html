@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lyric Memorizer - Safe Mode</title>
+    <title>Lyric Memorizer - SRS Quiz</title>
     <style>
         /* --- CSS STYLES --- */
         :root {
@@ -33,7 +33,7 @@
             max-width: 700px;
             padding: 20px;
             text-align: center;
-            margin-top: 15vh;
+            margin-top: 25vh; /* Starts in center */
             transition: margin-top 0.4s ease;
         }
         .header.compact { margin-top: 2vh; }
@@ -44,15 +44,41 @@
 
         input[type="text"] {
             width: 100%;
-            padding: 14px 24px;
+            padding: 14px 45px 14px 24px; /* Extra padding on right for X button */
             font-size: 16px;
             border: 1px solid var(--gray);
             border-radius: 24px;
             outline: none;
             box-shadow: 0 1px 6px rgba(32,33,36,0.28);
             box-sizing: border-box;
+            background-color: #fff;
+            transition: background-color 0.3s;
         }
-        input[type="text"]:focus { box-shadow: 0 1px 6px rgba(32,33,36,0.5); }
+        
+        /* Grey out state */
+        input[type="text"]:disabled {
+            background-color: #f1f3f4;
+            color: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        input[type="text"]:focus:not(:disabled) { box-shadow: 0 1px 6px rgba(32,33,36,0.5); }
+
+        /* The X Button */
+        .clear-btn {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            color: #777;
+            cursor: pointer;
+            padding: 5px 10px;
+            display: none; /* Hidden by default */
+            z-index: 5;
+        }
+        .clear-btn:hover { color: #333; }
 
         .suggestions {
             position: absolute;
@@ -73,7 +99,7 @@
 
         /* Navigation Tabs */
         .nav-tabs {
-            display: none; /* Hidden until loaded */
+            display: none; 
             margin-top: 20px;
             justify-content: center;
             gap: 10px;
@@ -99,7 +125,9 @@
             max-width: 700px;
             padding: 20px;
             margin-bottom: 50px;
+            display: none; /* Hidden until search */
         }
+        .content-area.active { display: block; }
         .view-section { display: none; }
         .view-section.active { display: block; }
 
@@ -135,7 +163,7 @@
             width: 60%;
             text-align: center;
             margin-bottom: 15px;
-            display: none; /* Hidden initially */
+            display: none;
         }
         .quiz-input:focus { border-color: var(--primary); outline: none; }
         
@@ -172,6 +200,7 @@
         <h1>Lyric Memorizer</h1>
         <div class="search-box">
             <input type="text" id="search-input" placeholder="Search for a song..." autocomplete="off">
+            <span id="clear-btn" class="clear-btn" title="Clear Search">&times;</span>
             <ul class="suggestions" id="suggestions"></ul>
         </div>
 
@@ -181,7 +210,7 @@
         </div>
     </div>
 
-    <div class="content-area">
+    <div class="content-area" id="main-content">
         
         <div id="study-view" class="view-section active">
             <div id="loading-msg" class="loading-spinner hidden">Loading lyrics and removing tracking scripts...</div>
@@ -211,15 +240,17 @@
         const RAPID_API_HOST = 'genius-song-lyrics1.p.rapidapi.com';
 
         // --- 2. STATE ---
-        let lyricsData = []; // { id, original, translation, nextReview, level, currentAnswer }
+        let lyricsData = []; 
         let quizState = { active: false, currentId: null };
 
         // --- 3. DOM ELEMENTS ---
         const els = {
             header: document.getElementById('header'),
             input: document.getElementById('search-input'),
+            clearBtn: document.getElementById('clear-btn'),
             suggestions: document.getElementById('suggestions'),
             tabs: document.getElementById('nav-tabs'),
+            mainContent: document.getElementById('main-content'),
             studyView: document.getElementById('study-view'),
             quizView: document.getElementById('quiz-view'),
             lyricsList: document.getElementById('lyrics-list'),
@@ -268,13 +299,38 @@
             els.suggestions.style.display = 'block';
         }
 
-        // --- 5. LOAD & SANITIZE SONG ---
+        // --- 5. CLEAR / RESET FUNCTION ---
+        els.clearBtn.addEventListener('click', resetApp);
+
+        function resetApp() {
+            // 1. Reset Input
+            els.input.value = '';
+            els.input.disabled = false;
+            els.clearBtn.style.display = 'none';
+            
+            // 2. Hide Content
+            els.header.classList.remove('compact');
+            els.tabs.style.display = 'none';
+            els.mainContent.classList.remove('active');
+            els.suggestions.style.display = 'none';
+            
+            // 3. Clear Data
+            lyricsData = [];
+            els.lyricsList.innerHTML = '';
+        }
+
+        // --- 6. LOAD SONG ---
         async function loadSong(id, title) {
-            // UI Reset
+            // UI LOCK
             els.suggestions.style.display = 'none';
             els.input.value = title;
+            els.input.disabled = true; // GREY OUT
+            els.clearBtn.style.display = 'block'; // SHOW X
+            
+            // Transition
             els.header.classList.add('compact');
             els.tabs.style.display = 'flex';
+            els.mainContent.classList.add('active');
             els.loadingMsg.classList.remove('hidden');
             els.lyricsList.innerHTML = '';
             switchMode('study');
@@ -289,7 +345,6 @@
                     rawHtml = data.lyrics.lyrics.body.html;
                 } else if (data.lyrics) rawHtml = data.lyrics;
 
-                // ** CRITICAL FIX: SANITIZE HTML BEFORE USE **
                 const cleanHtml = sanitizeHTML(rawHtml);
                 processLyrics(cleanHtml);
 
@@ -299,26 +354,20 @@
         }
 
         function sanitizeHTML(htmlString) {
-            // 1. Remove script tags and content
             let clean = htmlString.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gim, "");
-            // 2. Remove iframes
             clean = clean.replace(/<iframe\b[^>]*>[\s\S]*?<\/iframe>/gim, "");
-            // 3. Remove style tags
             clean = clean.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gim, "");
-            // 4. Remove tracking images
             clean = clean.replace(/<img\b[^>]*>/gim, "");
             return clean;
         }
 
         function processLyrics(html) {
-            // Convert HTML to Text safely by using a dummy div
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = html;
-            const textContent = tempDiv.innerText; // Get only text
+            const textContent = tempDiv.innerText;
 
-            // Split into lines
             lyricsData = textContent.split('\n')
-                .filter(line => line.trim() !== '' && !line.startsWith('[')) // Remove headers
+                .filter(line => line.trim() !== '' && !line.startsWith('['))
                 .map((line, idx) => ({
                     id: idx,
                     original: line.trim(),
@@ -332,12 +381,11 @@
             startTranslations();
         }
 
-        // --- 6. TRANSLATION WATERFALL ---
+        // --- 7. TRANSLATIONS ---
         async function startTranslations() {
             for(let i=0; i<lyricsData.length; i++) {
-                if(i > 20) break; // Limit to first 20 lines to save API quota
-                
-                await new Promise(r => setTimeout(r, 300)); // Delay
+                if(i > 20) break;
+                await new Promise(r => setTimeout(r, 300));
                 try {
                     const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(lyricsData[i].original)}&langpair=en|ko`);
                     const data = await res.json();
@@ -349,7 +397,6 @@
             }
         }
 
-        // --- 7. UI RENDERERS ---
         function renderStudyList() {
             els.lyricsList.innerHTML = '';
             lyricsData.forEach(item => {
@@ -386,7 +433,7 @@
             if(mode === 'study') {
                 els.studyView.classList.add('active');
                 document.querySelector('button[onclick="switchMode(\'study\')"]').classList.add('active');
-                renderStudyList(); // Refresh levels
+                renderStudyList(); 
             } else {
                 els.quizView.classList.add('active');
                 document.querySelector('button[onclick="switchMode(\'quiz\')"]').classList.add('active');
@@ -395,7 +442,7 @@
             }
         }
 
-        // --- 8. QUIZ ENGINE (SRS + CLOZE) ---
+        // --- 8. QUIZ ENGINE ---
         function resetQuizUI() {
             els.quizPrompt.innerText = "Press Start to begin reviewing.";
             els.quizInput.style.display = 'none';
@@ -407,24 +454,20 @@
 
         function getNextCard() {
             const now = Date.now();
-            // Filter due cards
             const due = lyricsData.filter(l => l.nextReview <= now);
             if(!due.length) return null;
-            // Sort by level (easiest/newest first)
             due.sort((a,b) => a.level - b.level);
             return due[0];
         }
 
         function createCloze(text) {
             const words = text.split(' ');
-            // Find valid words (>3 chars)
             const validIndices = words.map((w, i) => w.replace(/[^a-zA-Z]/g,'').length > 3 ? i : -1).filter(i => i !== -1);
-            
             let targetIndex;
             if(validIndices.length === 0) targetIndex = words.length - 1;
             else targetIndex = validIndices[Math.floor(Math.random() * validIndices.length)];
 
-            const answer = words[targetIndex].replace(/[^a-zA-Z0-9]/g, ''); // Clean punctuation
+            const answer = words[targetIndex].replace(/[^a-zA-Z0-9]/g, '');
             const displayWords = [...words];
             displayWords[targetIndex] = "______";
 
@@ -433,7 +476,6 @@
 
         els.btnAction.addEventListener('click', () => {
             if(!quizState.active) {
-                // START / NEXT QUESTION
                 const card = getNextCard();
                 if(!card) {
                     els.quizPrompt.innerText = "🎉 All caught up! Great job.";
@@ -454,7 +496,6 @@
                 els.btnAction.innerText = "Check";
                 quizState.active = true;
             } else {
-                // CHECK ANSWER
                 const card = lyricsData[quizState.currentId];
                 const userAns = els.quizInput.value.trim().toLowerCase();
                 const correctAns = card.currentAnswer.toLowerCase();
@@ -463,13 +504,12 @@
                     els.feedback.innerText = "Correct! +1 Level";
                     els.feedback.className = "feedback-msg correct";
                     card.level++;
-                    // SRS Interval: 10s, 1min, 5min...
                     card.nextReview = Date.now() + (card.level * 60 * 1000); 
                 } else {
                     els.feedback.innerText = `Wrong! Answer: ${card.currentAnswer}`;
                     els.feedback.className = "feedback-msg wrong";
                     card.level = 0;
-                    card.nextReview = Date.now() + 5000; // 5s retry
+                    card.nextReview = Date.now() + 5000;
                 }
 
                 els.btnAction.innerText = "Next >>";
@@ -478,7 +518,6 @@
             }
         });
 
-        // Enter key support
         els.quizInput.addEventListener('keypress', (e) => {
             if(e.key === 'Enter') els.btnAction.click();
         });
@@ -489,7 +528,6 @@
             els.statLearned.innerText = `Learned: ${lyricsData.filter(l => l.level > 0).length}`;
         }
         
-        // Close suggestions on click outside
         document.addEventListener('click', (e) => {
             if (!els.input.contains(e.target) && !els.suggestions.contains(e.target)) {
                 els.suggestions.style.display = 'none';
