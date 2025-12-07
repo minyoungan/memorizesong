@@ -3,195 +3,260 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lyrics Search with Korean Translation</title>
+    <title>Lyric Memorizer - SRS Quiz</title>
     <style>
-        /* CSS Variables */
         :root {
-            --primary-color: #4285f4;
-            --bg-color: #ffffff;
-            --text-color: #202124;
-            --gray-border: #dfe1e5;
-            --hover-bg: #f8f9fa;
-            --translation-color: #5f6368; /* Grey for translation */
+            --primary: #4285f4;
+            --success: #34a853;
+            --danger: #ea4335;
+            --bg: #ffffff;
+            --text: #202124;
+            --gray: #dfe1e5;
         }
 
         body {
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
         }
 
-        .container {
+        /* --- Header & Search --- */
+        .header {
             width: 100%;
-            max-width: 600px;
-            margin-top: 20vh;
+            max-width: 700px;
             padding: 20px;
             text-align: center;
+            margin-top: 10vh;
             transition: margin-top 0.4s ease;
         }
+        .header.compact { margin-top: 2vh; }
 
-        .container.active {
-            margin-top: 5vh;
-        }
+        h1 { font-weight: 300; margin-bottom: 20px; }
 
-        h1 {
-            font-weight: 300;
-            font-size: 2.5rem;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        /* Search Box */
-        .search-wrapper {
+        .search-box {
             position: relative;
             width: 100%;
-            margin-bottom: 20px;
         }
 
         input[type="text"] {
             width: 100%;
             padding: 14px 24px;
             font-size: 16px;
-            border: 1px solid var(--gray-border);
+            border: 1px solid var(--gray);
             border-radius: 24px;
             outline: none;
-            box-shadow: 0 1px 6px rgba(32,33,36,.28);
-            transition: box-shadow 0.2s;
+            box-shadow: 0 1px 6px rgba(32,33,36,0.28);
             box-sizing: border-box;
         }
 
-        input[type="text"]:focus {
-            box-shadow: 0 1px 6px rgba(32,33,36,.5);
-        }
-
-        /* Suggestions Dropdown */
-        .suggestions-list {
+        .suggestions {
             position: absolute;
-            top: 50px;
-            left: 0;
-            right: 0;
+            top: 50px; left: 0; right: 0;
             background: white;
-            border: 1px solid var(--gray-border);
+            border: 1px solid var(--gray);
             border-top: none;
             border-radius: 0 0 24px 24px;
-            box-shadow: 0 4px 6px rgba(32,33,36,.28);
+            box-shadow: 0 4px 6px rgba(32,33,36,0.28);
             list-style: none;
-            padding: 0;
-            margin: 0;
-            text-align: left;
-            z-index: 10;
+            padding: 0; margin: 0;
+            z-index: 100;
             display: none;
+            text-align: left;
         }
+        .suggestions li { padding: 12px 24px; cursor: pointer; border-bottom: 1px solid #f1f1f1; }
+        .suggestions li:hover { background: #f8f9fa; }
 
-        .suggestions-list li {
-            padding: 12px 24px;
-            cursor: pointer;
-            border-bottom: 1px solid #f1f1f1;
-        }
-
-        .suggestions-list li:hover {
-            background-color: var(--hover-bg);
-        }
-
-        .song-title { font-weight: 600; display: block; }
-        .song-artist { font-size: 0.85rem; color: #555; }
-
-        /* Controls (Toggle) */
-        .controls {
-            margin: 15px 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        /* --- Navigation Tabs --- */
+        .nav-tabs {
+            display: none; /* Hidden until song loaded */
+            margin-top: 20px;
             gap: 10px;
-            font-size: 14px;
-            color: #555;
         }
-        
-        /* Lyrics Display Area */
-        #lyrics-display {
-            margin-top: 30px;
-            text-align: center;
-            max-width: 600px;
-            width: 100%;
-            padding-bottom: 80px;
-        }
-
-        /* Line Styling */
-        .lyric-block {
-            margin-bottom: 20px;
-        }
-
-        .lyric-line {
-            font-size: 18px;
+        .tab-btn {
+            padding: 10px 24px;
+            border: none;
+            background: #f1f3f4;
+            border-radius: 20px;
+            cursor: pointer;
             font-weight: 500;
-            color: #000;
-            margin-bottom: 4px;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
-        .translation-line {
-            font-size: 15px;
-            color: #4285f4; /* Blue to distinguish translation */
-            font-weight: 400;
-            min-height: 20px; /* Prevent jumping */
+        /* --- Main Content Area --- */
+        .content-area {
+            width: 100%;
+            max-width: 700px;
+            padding: 20px;
+            margin-bottom: 50px;
+        }
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        /* --- Study Mode Styles --- */
+        .lyric-row {
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f1f1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+        }
+        .lyric-text-group { flex: 1; text-align: left; }
+        .orig-line { font-size: 1.1rem; font-weight: 500; margin-bottom: 4px; }
+        .trans-line { font-size: 0.9rem; color: var(--primary); }
+        .mastery-indicator {
+            font-size: 0.8rem;
+            color: #888;
+            margin-left: 10px;
+            min-width: 60px;
+            text-align: right;
         }
 
-        .meta-tag {
-            font-size: 12px;
-            color: #999;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 2px 6px;
-            margin-bottom: 15px;
-            display: inline-block;
-        }
-
-        .loading-spinner {
-            color: #777;
-            font-style: italic;
+        /* --- Quiz Mode Styles (The Card) --- */
+        .quiz-card {
+            background: white;
+            border: 1px solid var(--gray);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             margin-top: 20px;
         }
+        
+        .quiz-prompt {
+            font-size: 1.4rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .cloze-blank {
+            display: inline-block;
+            min-width: 80px;
+            border-bottom: 2px solid var(--primary);
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .quiz-input {
+            font-size: 1.2rem;
+            padding: 10px;
+            border: 2px solid var(--gray);
+            border-radius: 8px;
+            width: 60%;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .quiz-input:focus { border-color: var(--primary); outline: none; }
+
+        .btn-check {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 24px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .feedback-msg {
+            height: 20px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        .feedback-msg.correct { color: var(--success); }
+        .feedback-msg.wrong { color: var(--danger); }
+
+        .stats-bar {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #666;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        /* Utility */
+        .hidden { display: none; }
+        .loading { color: #888; font-style: italic; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <div class="container" id="main-container">
-        <h1>Music Search</h1>
-        
-        <div class="search-wrapper">
-            <input type="text" id="search-input" placeholder="Enter song title..." autocomplete="off">
-            <ul class="suggestions-list" id="suggestions"></ul>
+    <div class="header" id="header">
+        <h1>Lyric Memorizer</h1>
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Search for a song..." autocomplete="off">
+            <ul class="suggestions" id="suggestions"></ul>
         </div>
 
-        <div class="controls">
-            <input type="checkbox" id="translate-toggle" checked>
-            <label for="translate-toggle">Auto-translate to Korean (Line-by-Line)</label>
-        </div>
-
-        <div id="lyrics-display"></div>
-        
-        <div style="font-size: 11px; color: #ccc; margin-top: 50px;">
-            Lyrics via Genius API | Translation via MyMemory API
+        <div class="nav-tabs" id="nav-tabs">
+            <button class="tab-btn active" onclick="switchMode('study')">📖 Study Mode</button>
+            <button class="tab-btn" onclick="switchMode('quiz')">🧠 Quiz Mode</button>
         </div>
     </div>
 
+    <div class="content-area">
+        
+        <div id="study-view" class="view-section active">
+            <div id="lyrics-list"></div>
+            <div id="study-msg" class="loading hidden">Select a song to start...</div>
+        </div>
+
+        <div id="quiz-view" class="view-section">
+            <div class="quiz-card">
+                <div id="quiz-question-container">
+                    <div class="quiz-prompt" id="quiz-prompt">Press Start to Begin!</div>
+                    <input type="text" id="quiz-answer" class="quiz-input" placeholder="Type missing word" autocomplete="off">
+                    <br>
+                    <button id="btn-action" class="btn-check">Start Quiz</button>
+                    <div class="feedback-msg" id="feedback"></div>
+                </div>
+            </div>
+            <div class="stats-bar">
+                <span id="stat-due">Due: 0</span>
+                <span id="stat-learned">Learned: 0</span>
+            </div>
+        </div>
+
+    </div>
+
     <script>
-        // --- Configuration ---
+        // --- API CONFIG ---
         const RAPID_API_KEY = '39ef605fcfmshfb8f3f73fff37e2p1a9076jsn4d35c9c6d6d5';
         const RAPID_API_HOST = 'genius-song-lyrics1.p.rapidapi.com';
-        
-        // --- DOM Elements ---
-        const searchInput = document.getElementById('search-input');
-        const suggestionsList = document.getElementById('suggestions');
-        const lyricsDisplay = document.getElementById('lyrics-display');
-        const mainContainer = document.getElementById('main-container');
-        const translateToggle = document.getElementById('translate-toggle');
 
-        // --- Search Logic ---
+        // --- STATE MANAGEMENT ---
+        let currentLyrics = []; // Array of objects: { id, original, translation, nextReview, level, hiddenWord }
+        let currentQuestionIndex = -1;
+        let isWaitingForNext = false;
+
+        // --- DOM ELEMENTS ---
+        const els = {
+            header: document.getElementById('header'),
+            input: document.getElementById('search-input'),
+            suggestions: document.getElementById('suggestions'),
+            tabs: document.getElementById('nav-tabs'),
+            studyView: document.getElementById('study-view'),
+            quizView: document.getElementById('quiz-view'),
+            lyricsList: document.getElementById('lyrics-list'),
+            studyMsg: document.getElementById('study-msg'),
+            quizPrompt: document.getElementById('quiz-prompt'),
+            quizInput: document.getElementById('quiz-answer'),
+            btnAction: document.getElementById('btn-action'),
+            feedback: document.getElementById('feedback'),
+            statDue: document.getElementById('stat-due'),
+            statLearned: document.getElementById('stat-learned')
+        };
+
+        // --- 1. SEARCH FUNCTIONALITY ---
         function debounce(func, wait) {
             let timeout;
             return function(...args) {
@@ -200,157 +265,277 @@
             };
         }
 
-        searchInput.addEventListener('input', debounce((e) => {
+        els.input.addEventListener('input', debounce((e) => {
             const query = e.target.value.trim();
             if (query.length > 2) fetchSuggestions(query);
-            else suggestionsList.style.display = 'none';
+            else els.suggestions.style.display = 'none';
         }, 400));
 
         async function fetchSuggestions(query) {
-            const url = `https://${RAPID_API_HOST}/search/?q=${encodeURIComponent(query)}&per_page=5&page=1`;
-            const options = { method: 'GET', headers: { 'x-rapidapi-key': RAPID_API_KEY, 'x-rapidapi-host': RAPID_API_HOST } };
-
             try {
-                const response = await fetch(url, options);
-                const data = await response.json();
-                const hits = data.hits || (data.response ? data.response.hits : []);
-                renderSuggestions(hits);
-            } catch (error) { console.error(error); }
+                const res = await fetch(`https://${RAPID_API_HOST}/search/?q=${encodeURIComponent(query)}&per_page=5`, {
+                    headers: { 'x-rapidapi-key': RAPID_API_KEY, 'x-rapidapi-host': RAPID_API_HOST }
+                });
+                const data = await res.json();
+                renderSuggestions(data.hits || []);
+            } catch (e) { console.error(e); }
         }
 
         function renderSuggestions(hits) {
-            suggestionsList.innerHTML = '';
-            if (!hits.length) { suggestionsList.style.display = 'none'; return; }
-
-            hits.forEach(item => {
-                const song = item.result;
+            els.suggestions.innerHTML = '';
+            if (!hits.length) { els.suggestions.style.display = 'none'; return; }
+            
+            hits.forEach(hit => {
                 const li = document.createElement('li');
-                li.innerHTML = `<span class="song-title">${song.title}</span><span class="song-artist">${song.artist_names}</span>`;
-                li.onclick = () => selectSong(song.id, song.full_title);
-                suggestionsList.appendChild(li);
+                li.innerHTML = `<b>${hit.result.title}</b> - ${hit.result.artist_names}`;
+                li.onclick = () => loadSong(hit.result.id, hit.result.full_title);
+                els.suggestions.appendChild(li);
             });
-            suggestionsList.style.display = 'block';
+            els.suggestions.style.display = 'block';
         }
 
-        function selectSong(id, fullTitle) {
-            suggestionsList.style.display = 'none';
-            searchInput.value = fullTitle;
-            mainContainer.classList.add('active');
-            lyricsDisplay.innerHTML = '<div class="loading-spinner">Fetching lyrics...</div>';
-            fetchLyrics(id);
-        }
-
-        // --- Lyrics Logic ---
-        async function fetchLyrics(id) {
-            const url = `https://${RAPID_API_HOST}/song/lyrics/?id=${id}`;
-            const options = { method: 'GET', headers: { 'x-rapidapi-key': RAPID_API_KEY, 'x-rapidapi-host': RAPID_API_HOST } };
+        // --- 2. SONG LOADING & PARSING ---
+        async function loadSong(id, title) {
+            els.suggestions.style.display = 'none';
+            els.input.value = title;
+            els.header.classList.add('compact');
+            els.tabs.style.display = 'flex';
+            els.studyMsg.classList.remove('hidden');
+            els.studyMsg.innerText = "Loading lyrics...";
+            els.lyricsList.innerHTML = '';
 
             try {
-                const response = await fetch(url, options);
-                const data = await response.json();
+                const res = await fetch(`https://${RAPID_API_HOST}/song/lyrics/?id=${id}`, {
+                    headers: { 'x-rapidapi-key': RAPID_API_KEY, 'x-rapidapi-host': RAPID_API_HOST }
+                });
+                const data = await res.json();
                 
-                let rawHtml = "";
+                let html = "";
                 if (data.lyrics && data.lyrics.lyrics && data.lyrics.lyrics.body && data.lyrics.lyrics.body.html) {
-                     rawHtml = data.lyrics.lyrics.body.html;
-                } else if (data.lyrics) {
-                     rawHtml = data.lyrics; // Fallback
-                }
+                    html = data.lyrics.lyrics.body.html;
+                } else if (data.lyrics) html = data.lyrics;
 
-                if(!rawHtml) throw new Error("No lyrics found");
-
-                processAndRenderLyrics(rawHtml);
-
-            } catch (error) {
-                lyricsDisplay.innerHTML = '<div class="loading-spinner">Could not load lyrics.</div>';
+                processLyrics(html);
+            } catch (e) {
+                els.studyMsg.innerText = "Error loading song.";
             }
         }
 
-        // --- Processing & Rendering ---
-        function processAndRenderLyrics(html) {
-            lyricsDisplay.innerHTML = ''; // Clear loading
-
-            // 1. Create a dummy element to parse HTML to text
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
+        function processLyrics(html) {
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            const text = temp.innerText;
             
-            // 2. Replace <br> with newlines to split easily
-            const cleanText = tempDiv.innerText; 
-            
-            // 3. Split into lines
-            const lines = cleanText.split('\n').filter(line => line.trim() !== '');
+            // Reset State
+            currentLyrics = text.split('\n')
+                .filter(line => line.trim() !== '' && !line.startsWith('[')) // Remove headers like [Chorus]
+                .map((line, index) => ({
+                    id: index,
+                    original: line.trim(),
+                    translation: '...', // Placeholder
+                    nextReview: Date.now(), // Due immediately
+                    level: 0 // 0 = New, 1 = Learned, 2 = Mastered
+                }));
 
-            // 4. Render lines
-            lines.forEach((line, index) => {
-                // Check if it's a meta tag like [Chorus]
-                if (line.startsWith('[') && line.endsWith(']')) {
-                    const metaDiv = document.createElement('div');
-                    metaDiv.className = 'meta-tag';
-                    metaDiv.innerText = line;
-                    lyricsDisplay.appendChild(metaDiv);
-                } else {
-                    // Create Container for pair
-                    const block = document.createElement('div');
-                    block.className = 'lyric-block';
+            renderStudyList();
+            fetchTranslations(); // Async translation
+            els.studyMsg.classList.add('hidden');
+        }
 
-                    // Original
-                    const originalDiv = document.createElement('div');
-                    originalDiv.className = 'lyric-line';
-                    originalDiv.innerText = line;
-
-                    // Translation
-                    const transDiv = document.createElement('div');
-                    transDiv.className = 'translation-line';
-                    transDiv.id = `trans-${index}`; // Unique ID for updating later
-                    
-                    block.appendChild(originalDiv);
-                    block.appendChild(transDiv);
-                    lyricsDisplay.appendChild(block);
-
-                    // Trigger translation if toggle is on
-                    if (translateToggle.checked) {
-                        // Add a small delay based on index to prevent API rate limiting (waterfall effect)
-                        setTimeout(() => {
-                            translateText(line, `trans-${index}`);
-                        }, index * 300); 
+        // --- 3. TRANSLATION (MyMemory API) ---
+        async function fetchTranslations() {
+            for (let i = 0; i < currentLyrics.length; i++) {
+                // Waterfall delay to prevent API blocking
+                await new Promise(r => setTimeout(r, 200)); 
+                
+                const item = currentLyrics[i];
+                try {
+                    const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(item.original)}&langpair=en|ko`);
+                    const data = await res.json();
+                    if(data.responseData) {
+                        item.translation = data.responseData.translatedText;
+                        updateStudyRow(i); // Update UI individually
                     }
-                }
+                } catch(e) { console.log("Trans fail"); }
+            }
+        }
+
+        // --- 4. UI RENDERING (Study Mode) ---
+        function renderStudyList() {
+            els.lyricsList.innerHTML = '';
+            currentLyrics.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'lyric-row';
+                div.id = `row-${index}`;
+                div.innerHTML = getRowHTML(item);
+                els.lyricsList.appendChild(div);
             });
         }
 
-        // --- Translation Logic (Free MyMemory API) ---
-        async function translateText(text, elementId) {
-            const el = document.getElementById(elementId);
-            if (!el) return;
-            
-            el.innerText = "..."; // Loading indicator
+        function updateStudyRow(index) {
+            const row = document.getElementById(`row-${index}`);
+            if(row) row.innerHTML = getRowHTML(currentLyrics[index]);
+        }
 
-            const sourceLang = 'en'; // Assuming English source for most Western songs
-            const targetLang = 'ko'; // Korean
+        function getRowHTML(item) {
+            // Visualize mastery level
+            let levelText = "New";
+            if(item.level > 0) levelText = "Learned";
+            if(item.level > 3) levelText = "Mastered 🔥";
             
-            // Using MyMemory API
-            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
+            return `
+                <div class="lyric-text-group">
+                    <div class="orig-line">${item.original}</div>
+                    <div class="trans-line">${item.translation}</div>
+                </div>
+                <div class="mastery-indicator">${levelText}</div>
+            `;
+        }
 
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if(data.responseData && data.responseData.translatedText) {
-                    el.innerText = data.responseData.translatedText;
-                } else {
-                    el.innerText = ""; // Hide if fail
-                }
-            } catch (e) {
-                console.log("Translation error", e);
-                el.innerText = "";
+        // --- 5. QUIZ LOGIC (Spaced Repetition & Cloze) ---
+        
+        function switchMode(mode) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            
+            if (mode === 'study') {
+                els.studyView.classList.add('active');
+                document.querySelector('button[onclick="switchMode(\'study\')"]').classList.add('active');
+                renderStudyList(); // Refresh to show progress
+            } else {
+                els.quizView.classList.add('active');
+                document.querySelector('button[onclick="switchMode(\'quiz\')"]').classList.add('active');
+                els.btnAction.innerText = "Start Quiz";
+                els.quizPrompt.innerText = "Press Start to begin reviewing due cards.";
+                els.quizInput.style.display = 'none';
+                isWaitingForNext = true;
+                updateStats();
             }
         }
 
-        // Close dropdown on outside click
-        document.addEventListener('click', (e) => {
-            if (!searchInput.contains(e.target) && !suggestionsList.contains(e.target)) {
-                suggestionsList.style.display = 'none';
+        // Logic to pick a word to hide
+        function createCloze(text) {
+            // Split into words, remove punctuation
+            const words = text.split(' ');
+            
+            // Filter candidates: length > 3 to avoid 'the', 'a'
+            const candidates = words.map((w, i) => ({w, i, clean: w.replace(/[^a-zA-Z]/g, '')}))
+                                    .filter(obj => obj.clean.length > 3);
+
+            if (candidates.length === 0) {
+                // Fallback: hide last word
+                const last = words.length - 1;
+                return {
+                    text: words.slice(0, last).join(' ') + " _______",
+                    answer: words[last].replace(/[^a-zA-Z]/g, '')
+                };
+            }
+
+            // Pick random candidate
+            const target = candidates[Math.floor(Math.random() * candidates.length)];
+            
+            // Reconstruct sentence with blank
+            const newWords = [...words];
+            newWords[target.i] = "_______";
+            
+            return {
+                text: newWords.join(' '),
+                answer: target.clean
+            };
+        }
+
+        function getNextQuestion() {
+            const now = Date.now();
+            // Filter items that are due (nextReview <= now)
+            const dueItems = currentLyrics.filter(l => l.nextReview <= now);
+            
+            if (dueItems.length === 0) return null;
+
+            // Prioritize: Lowest level (hardest) first
+            dueItems.sort((a, b) => a.level - b.level);
+            
+            return dueItems[0];
+        }
+
+        els.btnAction.addEventListener('click', () => {
+            if (isWaitingForNext) {
+                // Load Question
+                const item = getNextQuestion();
+                
+                if (!item) {
+                    els.quizPrompt.innerText = "🎉 All caught up! No lines due for review right now.";
+                    els.quizInput.style.display = 'none';
+                    els.btnAction.style.display = 'none';
+                    return;
+                }
+
+                currentQuestionIndex = item.id;
+                const cloze = createCloze(item.original);
+                
+                // Save the answer we are looking for in the object temporarily
+                currentLyrics[item.id].currentAnswer = cloze.answer;
+
+                els.quizPrompt.innerHTML = cloze.text + `<br><span style="font-size:1rem; color:#888;">(${item.translation})</span>`;
+                els.quizInput.style.display = 'inline-block';
+                els.quizInput.value = '';
+                els.quizInput.focus();
+                els.btnAction.innerText = "Check Answer";
+                els.feedback.innerText = '';
+                els.feedback.className = 'feedback-msg';
+                
+                isWaitingForNext = false;
+            } else {
+                // Check Answer
+                checkAnswer();
             }
         });
+
+        // Allow Enter key to submit
+        els.quizInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') checkAnswer();
+        });
+
+        function checkAnswer() {
+            const item = currentLyrics[currentQuestionIndex];
+            const userVal = els.quizInput.value.trim().toLowerCase();
+            const correctVal = item.currentAnswer.toLowerCase();
+
+            if (userVal === correctVal) {
+                // CORRECT
+                els.feedback.innerText = "Correct! +1 Level";
+                els.feedback.classList.add('correct');
+                
+                // SRS Logic: Increase interval
+                item.level++;
+                // Level 1: +30s, Level 2: +2m, Level 3: +10m
+                const delay = item.level * 30 * 1000 * item.level; 
+                item.nextReview = Date.now() + delay;
+
+            } else {
+                // WRONG
+                els.feedback.innerText = `Wrong! Answer was: ${item.currentAnswer}`;
+                els.feedback.classList.add('wrong');
+                
+                // SRS Logic: Reset
+                item.level = 0; 
+                item.nextReview = Date.now() + 5000; // Ask again in 5 seconds
+            }
+
+            // Transition UI
+            els.btnAction.innerText = "Next Question >>";
+            isWaitingForNext = true;
+            updateStats();
+        }
+
+        function updateStats() {
+            const now = Date.now();
+            const due = currentLyrics.filter(l => l.nextReview <= now).length;
+            const learned = currentLyrics.filter(l => l.level > 0).length;
+            
+            els.statDue.innerText = `Due: ${due}`;
+            els.statLearned.innerText = `Learned: ${learned}/${currentLyrics.length}`;
+        }
+
     </script>
 </body>
 </html>
